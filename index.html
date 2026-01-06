@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive California Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+    .legend {
+      background: white;
+      padding: 10px;
+      line-height: 1.5;
+      position: absolute;
+      bottom: 30px;
+      left: 10px;
+      z-index: 1000;
+      border-radius: 5px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+      font-family: Arial, sans-serif;
+    }
+    .legend h4 {
+      margin: 0 0 5px;
+    }
+    .legend ul li {
+      cursor: pointer;
+    }
+    
+    #store-list {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #ccc;
+    }
+
+    #stores li {
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="legend">
+    <h4>Sales Reps</h4>
+    <ul id="county-list" style="margin: 0; padding-left: 20px;"></ul>
+    <!-- changes start here -->
+    <hr>
+     <div id="store-list">
+    <strong>Stores</strong>
+    <ul id="stores" style="margin: 5px 0 0; padding-left: 20px;"></ul>
+  </div>
+    <!-- changes end here -->
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([34.0, -118.25], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Sales Rep Store Mapping
+    const countyCityData = {
+      "Ashley": [
+        { name: "1072 EAST BREA", coords: [33.913576822507615, -117.86933209198807], color: "red" },
+        { name: "1077 LAGUNA NIGUEL", coords: [33.5651243361582, -117.7088963982362], color: "red" },
+        { name: "1840 EL TORO", coords: [33.62111660176546, -117.70552828595495], color: "red" },
+
+
+      ],
+      
+      "Sammy": [
+        { name: "1005 SAN PEDRO", coords: [33.765689563479675, -118.29490188465924], color: "blue" },
+        { name: "603 TUSTIN", coords: [33.72479923664724, -117.79638113068148], color: "blue" },
+        { name: "606 SANTA ANA", coords: [33.70062697889443, -117.91644747301112], color: "blue" },
+        { name: "654 COMMERCE", coords: [33.98717619905596, -118.13429869999999], color: "blue" },
+        { name: "6639 GARDEN GROVE", coords: [33.77518547039424, -117.94421460000001], color: "blue" },
+        { name: "6646 HUNTINGTON BEACH", coords: [33.71467136086147, -118.00531642698887], color: "blue" },
+        { name: "6673 EL MONTE", coords: [34.08849017500694, -118.05426414232961], color: "blue" },
+        { name: "6680 N SANTA ANA", coords: [33.72541487224378, -117.84318781349441], color: "blue" },
+        { name: "6684 WHITTIER", coords: [33.965574067952275, -118.04930887116481], color: "blue" },
+        { name: "6952 STANTON", coords: [33.786914204880034, -117.99418548465925], color: "blue" },
+        { name: "6963 HUNTINGTON BEACH", coords: [33.68504319430185, -117.97241424232963], color: "blue" },
+        { name: "8525 EAST IRVINE", coords: [33.70000032184737, -117.74217841534075], color: "blue" },
+        { name: "607 INDUSTRY", coords: [33.996331920319086, -117.90774485397773], color: "blue" },
+
+      ],
+
+    };
+
+    const allMarkers = [];
+
+    function showCities(county) {
+      //clear markers
+      allMarkers.forEach(marker => map.removeLayer(marker));
+      allMarkers.length = 0;
+
+      //clear store list
+      const storeUl = document.getElementById('stores');
+      storeUl.innerHTML = '';
+      
+      const cities = countyCityData[county] || [];
+      if (cities.length === 0) return;
+
+      const group = [];
+
+      cities.forEach(city => {
+
+        // Add store name to list
+        const storeLi = document.createElement('li');
+        storeLi.textContent = city.name;
+        storeUl.appendChild(storeLi);
+
+        //marker icon
+        const icon = L.divIcon({
+          className: '',
+          html: `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='${city.color}' stroke='black' stroke-width='2'/></svg>`
+        });
+
+        const marker = L.marker(city.coords, { icon })
+          .addTo(map)
+          .bindPopup(`<strong>${city.name}</strong>`);
+
+        allMarkers.push(marker);
+        group.push(marker);
+      });
+
+      const bounds = L.featureGroup(group).getBounds();
+      map.fitBounds(bounds);
+    }
+
+    // Populate county list in legend
+    const countyList = document.getElementById('county-list');
+    Object.keys(countyCityData).forEach(county => {
+      const li = document.createElement('li');
+      li.textContent = county;
+      li.addEventListener('click', () => showCities(county));
+      countyList.appendChild(li);
+    });
+
+    // Load county boundaries
+    fetch('https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/california-counties.geojson')
+      .then(res => res.json())
+      .then(data => {
+        const geojsonLayer = L.geoJSON(data, {
+          style: {
+            color: '#444',
+            weight: 1,
+            fillColor: '#66b3ff',
+            fillOpacity: 0.4
+          },
+          onEachFeature: function (feature, layer) {
+            layer.on({
+              click: function (e) {
+                map.fitBounds(e.target.getBounds());
+              }
+            });
+            layer.bindPopup(`<strong>${feature.properties.name}</strong>`);
+          }
+        }).addTo(map);
+      });
+  </script>
+</body>
+</html>
